@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Дашборд — Makwin VPN Admin{% endblock %}
+{% block content %}
+
+<div class="section-title">👋 Привет, {{ admin.login }}</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="label">Пользователей всего</div>
+            <div class="value">{{ stats.total_users }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="label">Активных подписок</div>
+            <div class="value">{{ stats.active_subs }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="label">Подписок сегодня</div>
+            <div class="value">{{ stats.subs_today }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="label">Подписок за неделю</div>
+            <div class="value">{{ stats.subs_week }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-6 col-md-4">
+        <div class="stat-card">
+            <div class="label">⭐ Stars сегодня</div>
+            <div class="value">{{ stats.stars_today }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="stat-card">
+            <div class="label">⭐ Stars всего</div>
+            <div class="value">{{ stats.stars_total }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="stat-card">
+            <div class="label">Платежей всего</div>
+            <div class="value">{{ stats.payments_total }}</div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
