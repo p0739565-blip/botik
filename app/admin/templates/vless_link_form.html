@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ "Редактировать ссылку" if link else "Новая ссылка" }} — Makwin VPN Admin{% endblock %}
+{% block content %}
+
+<a href="/admin/vless-links" class="text-dim small"><i class="bi bi-arrow-left"></i> К списку ссылок</a>
+
+<div class="section-title mt-2">
+    {{ "Редактировать ссылку" if link else ("Новая запасная ссылка" if is_dead else "Новая рабочая ссылка") }}
+</div>
+
+{% if error %}
+<div class="alert alert-danger py-2 small">{{ error }}</div>
+{% endif %}
+
+<form method="post"
+      action="{{ '/admin/vless-links/' + link.id|string + '/edit' if link else '/admin/vless-links/new' }}">
+
+    <div class="card-soft mb-3" style="max-width: 720px;">
+        <div class="mb-3">
+            <label class="form-label small text-dim">Ссылка-конфиг (vless://, hy2:// и т.п.)</label>
+            <textarea name="url" class="form-control form-control-admin" rows="4" required
+                      style="font-family: monospace; font-size: 0.85rem;">{{ link.url if link else "" }}</textarea>
+            <div class="text-dim small mt-1">Вставьте ссылку целиком, как она выдаётся из xray/панели сервера.</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small text-dim">Заметка для себя (необязательно)</label>
+            <input type="text" name="note" class="form-control form-control-admin"
+                   placeholder="например: DE fin6, WiFi" value="{{ link.note if link else '' }}">
+            <div class="text-dim small mt-1">Видна только в админке, пользователю не показывается.</div>
+        </div>
+
+        {% if not link %}
+        <input type="hidden" name="is_dead" value="{{ '1' if is_dead else '0' }}">
+        <div class="text-dim small">
+            {% if is_dead %}
+            Это запасная ссылка — она попадёт в список только тем, у кого истекла или не найдена подписка.
+            {% else %}
+            Это рабочая ссылка — попадёт в список у всех, у кого активна подписка.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-accent">Сохранить</button>
+</form>
+
+{% endblock %}

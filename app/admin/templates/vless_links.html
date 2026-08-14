@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}VPN-ссылки — Makwin VPN Admin{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="section-title mb-0">VPN-ссылки</div>
+</div>
+
+{% if working_active_count == 0 %}
+<div class="alert alert-danger py-2 small mb-3">
+    ⚠️ Нет ни одной активной рабочей ссылки — сейчас все действующие подписки
+    получат пустой список конфигов. Включите хотя бы одну ссылку ниже.
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+    <div class="fw-semibold">Рабочие ссылки <span class="text-dim">(что видят активные подписчики)</span></div>
+    <a href="/admin/vless-links/new?dead=0" class="btn btn-accent btn-sm"><i class="bi bi-plus-lg"></i> Добавить</a>
+</div>
+
+<div class="card-soft p-0 mb-4">
+    <table class="table table-admin mb-0">
+        <thead>
+        <tr>
+            <th class="ps-3" style="width: 90px;"></th>
+            <th>Ссылка</th>
+            <th>Заметка</th>
+            <th>Статус</th>
+            <th class="pe-3"></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for link in working %}
+        <tr>
+            <td class="ps-3">
+                <form method="post" action="/admin/vless-links/{{ link.id }}/move" class="d-inline">
+                    <input type="hidden" name="direction" value="up">
+                    <button class="btn btn-sm btn-outline-light border-0 text-dim p-1" title="Выше"><i class="bi bi-caret-up-fill"></i></button>
+                </form>
+                <form method="post" action="/admin/vless-links/{{ link.id }}/move" class="d-inline">
+                    <input type="hidden" name="direction" value="down">
+                    <button class="btn btn-sm btn-outline-light border-0 text-dim p-1" title="Ниже"><i class="bi bi-caret-down-fill"></i></button>
+                </form>
+            </td>
+            <td class="text-dim" style="max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ link.url }}">
+                {{ link.url }}
+            </td>
+            <td class="text-dim">{{ link.note or "—" }}</td>
+            <td>
+                {% if link.is_active %}
+                <span class="badge badge-active">включена</span>
+                {% else %}
+                <span class="badge badge-inactive">выключена</span>
+                {% endif %}
+            </td>
+            <td class="pe-3 text-end">
+                <a href="/admin/vless-links/{{ link.id }}/edit" class="btn btn-sm btn-accent">Изменить</a>
+                <form method="post" action="/admin/vless-links/{{ link.id }}/toggle" class="d-inline">
+                    <button class="btn btn-sm btn-outline-light">{{ "Выключить" if link.is_active else "Включить" }}</button>
+                </form>
+                <form method="post" action="/admin/vless-links/{{ link.id }}/delete" class="d-inline"
+                      onsubmit="return confirm('Удалить эту ссылку насовсем?');">
+                    <button class="btn btn-sm btn-danger-soft">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-dim py-4">Рабочих ссылок пока нет</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+    <div class="fw-semibold">
+        Запасные ссылки <span class="text-dim">(показываются вместо истёкшей/несуществующей подписки)</span>
+    </div>
+    <a href="/admin/vless-links/new?dead=1" class="btn btn-accent btn-sm"><i class="bi bi-plus-lg"></i> Добавить</a>
+</div>
+
+<div class="card-soft p-0">
+    <table class="table table-admin mb-0">
+        <thead>
+        <tr>
+            <th class="ps-3" style="width: 90px;"></th>
+            <th>Ссылка</th>
+            <th>Заметка</th>
+            <th>Статус</th>
+            <th class="pe-3"></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for link in dead %}
+        <tr>
+            <td class="ps-3">
+                <form method="post" action="/admin/vless-links/{{ link.id }}/move" class="d-inline">
+                    <input type="hidden" name="direction" value="up">
+                    <button class="btn btn-sm btn-outline-light border-0 text-dim p-1" title="Выше"><i class="bi bi-caret-up-fill"></i></button>
+                </form>
+                <form method="post" action="/admin/vless-links/{{ link.id }}/move" class="d-inline">
+                    <input type="hidden" name="direction" value="down">
+                    <button class="btn btn-sm btn-outline-light border-0 text-dim p-1" title="Ниже"><i class="bi bi-caret-down-fill"></i></button>
+                </form>
+            </td>
+            <td class="text-dim" style="max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ link.url }}">
+                {{ link.url }}
+            </td>
+            <td class="text-dim">{{ link.note or "—" }}</td>
+            <td>
+                {% if link.is_active %}
+                <span class="badge badge-active">включена</span>
+                {% else %}
+                <span class="badge badge-inactive">выключена</span>
+                {% endif %}
+            </td>
+            <td class="pe-3 text-end">
+                <a href="/admin/vless-links/{{ link.id }}/edit" class="btn btn-sm btn-accent">Изменить</a>
+                <form method="post" action="/admin/vless-links/{{ link.id }}/toggle" class="d-inline">
+                    <button class="btn btn-sm btn-outline-light">{{ "Выключить" if link.is_active else "Включить" }}</button>
+                </form>
+                <form method="post" action="/admin/vless-links/{{ link.id }}/delete" class="d-inline"
+                      onsubmit="return confirm('Удалить эту ссылку насовсем?');">
+                    <button class="btn btn-sm btn-danger-soft">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-dim py-4">Запасных ссылок пока нет</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
