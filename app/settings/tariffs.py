@@ -24,7 +24,7 @@ TARIFFS = {
         "title": "📅1 месяц",
         "days": 30,
         "stars": 50,
-        "card": 50,
+        "card": 1,
         "crypto": None,
     },
 

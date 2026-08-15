@@ -1,6 +1,7 @@
 import datetime
 import secrets
 
+from aiogram import Bot
 from aiogram.types import CallbackQuery
 from sqlalchemy import select
 
@@ -111,6 +112,45 @@ async def send_subscription(
     # пользователя не появится нижнее меню, пока он не наберёт /start
     # заново.
     await target.answer_photo(
+        photo=qr_file,
+        caption=text,
+        parse_mode="Markdown",
+        reply_markup=main_menu(),
+    )
+
+
+async def send_subscription_by_chat_id(
+    bot: Bot,
+    chat_id: int,
+    user: User,
+    days: int,
+) -> None:
+    """
+    То же самое, что send_subscription(), но для случаев, когда нет
+    объекта Message/CallbackQuery — например, из вебхука Platega в
+    процессе app.api, у которого нет aiogram-диспетчера и который
+    поэтому создаёт свой собственный Bot() и шлёт сообщения напрямую
+    по chat_id.
+    """
+
+    subscription = await issue_subscription(
+        user=user,
+        days=days,
+    )
+
+    sub_url = f"{SUB_DOMAIN}/sub/{subscription.token}"
+
+    expiry_str = subscription.expiry.strftime("%d.%m.%Y %H:%M")
+
+    text = subscription_issued_text(
+        sub_url=sub_url,
+        expiry_str=expiry_str,
+    )
+
+    qr_file = make_qr(sub_url)
+
+    await bot.send_photo(
+        chat_id=chat_id,
         photo=qr_file,
         caption=text,
         parse_mode="Markdown",

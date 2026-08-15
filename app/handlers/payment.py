@@ -1,6 +1,8 @@
 from aiogram import F, Router
 from aiogram.types import (
     CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     Message,
     PreCheckoutQuery,
 )
@@ -8,7 +10,8 @@ from aiogram.types import (
 from app.db import async_session
 from app.keyboards.inline import payment_keyboard, payment_method_keyboard
 from app.models import Payment
-from app.services.payments import build_stars_invoice
+from app.services import platega
+from app.services.payments import build_stars_invoice, create_card_payment
 from app.services.subscription import send_subscription
 from app.services.users import get_or_create_user
 from app.settings.tariffs import TARIFFS
@@ -93,15 +96,56 @@ async def buy_stars(callback: CallbackQuery):
 
 
 # ==========================================
-# Банковская карта — оплата ещё не подключена
+# Банковская карта — Platega
 # ==========================================
 
 @router.callback_query(F.data.startswith("buy_card_"))
 async def buy_card(callback: CallbackQuery):
 
-    await callback.answer(
-        "Оплата картой скоро будет добавлена 🚀",
-        show_alert=True,
+    tariff_key = callback.data.removeprefix("buy_card_")
+
+    tariff = TARIFFS.get(tariff_key)
+
+    if tariff is None or tariff.get("card") is None:
+        await callback.answer(
+            "Тариф не найден.",
+            show_alert=True,
+        )
+        return
+
+    await callback.answer()
+
+    user = await get_or_create_user(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
+
+    try:
+        pay_url = await create_card_payment(
+            user=user,
+            chat_id=callback.message.chat.id,
+            tariff_key=tariff_key,
+            tariff=tariff,
+        )
+    except platega.PlategaError:
+        await callback.message.answer(
+            "Не получилось создать ссылку на оплату картой. "
+            "Попробуйте ещё раз чуть позже или оплатите через Telegram Stars."
+        )
+        return
+
+    await callback.message.answer(
+        f"Оплата: {tariff['title']} — {tariff['card']}₽\n\n"
+        "После оплаты подписка придёт в этот чат автоматически "
+        "в течение пары минут.",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="💳 Перейти к оплате",
+                    url=pay_url,
+                )
+            ]]
+        ),
     )
 
 

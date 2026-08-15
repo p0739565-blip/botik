@@ -16,11 +16,40 @@
       action="{{ '/admin/vless-links/' + link.id|string + '/edit' if link else '/admin/vless-links/new' }}">
 
     <div class="card-soft mb-3" style="max-width: 720px;">
+
+        <div class="mb-3">
+            <label class="form-label small text-dim">Название сервера</label>
+            <input type="text" name="name" class="form-control form-control-admin"
+                   placeholder="например: 🇩🇪 Германия (WiFi)"
+                   value="{{ current_name if link else '' }}">
+            <div class="text-dim small mt-1">
+                Это имя видит пользователь в своём VPN-приложении (зашивается в ссылку
+                как #фрагмент). Оставьте пустым, чтобы у ссылки не было имени.
+            </div>
+        </div>
+
         <div class="mb-3">
             <label class="form-label small text-dim">Ссылка-конфиг (vless://, hy2:// и т.п.)</label>
             <textarea name="url" class="form-control form-control-admin" rows="4" required
-                      style="font-family: monospace; font-size: 0.85rem;">{{ link.url if link else "" }}</textarea>
-            <div class="text-dim small mt-1">Вставьте ссылку целиком, как она выдаётся из xray/панели сервера.</div>
+                      style="font-family: monospace; font-size: 0.85rem;">{{ current_base_url if link else "" }}</textarea>
+            <div class="text-dim small mt-1">
+                Вставьте ссылку из xray/панели сервера. Можно вставить как есть, вместе
+                со своим #именем — если поле «Название сервера» выше заполнено, оно
+                заменит собой то, что было в ссылке.
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small text-dim">Группа (необязательно)</label>
+            <select name="group_id" class="form-select form-control-admin">
+                <option value="">Без группы</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}" {% if selected_group_id == group.id %}selected{% endif %}>
+                    {{ group.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="text-dim small mt-1">Только для удобства в админке, на выдачу пользователю не влияет.</div>
         </div>
 
         <div class="mb-3">

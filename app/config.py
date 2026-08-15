@@ -45,6 +45,25 @@ SUB_DOMAIN = _require("SUB_DOMAIN").strip().rstrip("/")
 
 
 # ==========================
+# Platega (оплата картой)
+# ==========================
+# https://docs.platega.io/ — X-MerchantId / X-Secret выдаются
+# менеджером Platega и видны в личном кабинете на странице «Настройки».
+# В личном кабинете (Настройки → Callback URLs) нужно указать
+# {SUB_DOMAIN}/webhooks/platega — иначе бот не узнает об оплате.
+PLATEGA_MERCHANT_ID = _require("PLATEGA_MERCHANT_ID")
+PLATEGA_SECRET = _require("PLATEGA_SECRET")
+PLATEGA_BASE_URL = os.getenv("PLATEGA_BASE_URL", "https://app.platega.io").strip().rstrip("/")
+
+# Числовой код способа оплаты для кнопки "Банковская карта" (см.
+# PaymentMethodInt в доках Platega). По умолчанию 11 (карта). Если
+# Platega вернёт "No available card cascades" — картный каскад не
+# подключен на вашем мерчанте, обратитесь к менеджеру Platega, либо
+# временно смените на 2 (SBP QR) через .env.
+PLATEGA_CARD_METHOD = _int_env("PLATEGA_CARD_METHOD", 11)
+
+
+# ==========================
 # Локальная база SQLite
 # ==========================
 

@@ -16,6 +16,7 @@ from app.db import async_session, init_models
 from app.decoy import render_decoy_page
 from app.models import Subscription
 from app.vless_links import get_dead_links, render_links
+from app.webhooks.platega import router as platega_webhook_router
 
 app = FastAPI(title="VPN subscription server")
 
@@ -27,6 +28,7 @@ app.mount(
     name="admin_static",
 )
 app.include_router(admin_router)
+app.include_router(platega_webhook_router)
 
 TELEGRAM_LINK = f"https://t.me/{CHANNEL_USERNAME}" if CHANNEL_USERNAME else "https://t.me/"
 
@@ -130,6 +132,43 @@ async def get_subscription(token: str, request: Request):
     expiry_unix = int(subscription.expiry.timestamp())
     return build_subscription_response(
         expiry_unix, subscription.device_limit, links
+    )
+
+
+_PLATEGA_RETURN_PAGE = """<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title></head>
+<body style="font-family: sans-serif; text-align: center; padding-top: 15vh;">
+<h2>{title}</h2>
+<p>{message}</p>
+<p><a href="{bot_link}">Вернуться в бота</a></p>
+</body></html>"""
+
+
+@app.get("/payments/platega/return")
+async def platega_return():
+    """Страница, на которую Platega редиректит после успешной оплаты.
+    Подписка выдаётся не здесь, а по вебхуку (см. app.webhooks.platega) —
+    эта страница чисто информационная, чтобы пользователь не застрял
+    на пустом экране."""
+    return HTMLResponse(
+        _PLATEGA_RETURN_PAGE.format(
+            title="Оплата прошла",
+            message="Подписка придёт в чат с ботом в течение пары минут.",
+            bot_link=TELEGRAM_LINK,
+        )
+    )
+
+
+@app.get("/payments/platega/failed")
+async def platega_failed():
+    return HTMLResponse(
+        _PLATEGA_RETURN_PAGE.format(
+            title="Оплата не прошла",
+            message="Попробуйте ещё раз или выберите другой способ оплаты в боте.",
+            bot_link=TELEGRAM_LINK,
+        )
     )
 
 
