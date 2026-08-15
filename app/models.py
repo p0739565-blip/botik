@@ -61,6 +61,37 @@ class Subscription(Base):
         return self.is_active and self.expiry > datetime.datetime.now()
 
 
+class VlessLinkGroup(Base):
+    """Подгруппа внутри одного из двух основных списков (рабочие /
+    запасные) — чисто для организации в админке, на выдачу
+    пользователю не влияет (порядок и активность по-прежнему решаются
+    на уровне VlessLink). Например: "Европа", "4G-операторы".
+
+    is_dead определяет, к какому из двух основных списков привязана
+    группа — рабочему или запасному; смешивать ссылки из разных
+    списков в одной группе нельзя."""
+
+    __tablename__ = "vless_link_groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    is_dead: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(), default=datetime.datetime.now
+    )
+
+    links: Mapped[list["VlessLink"]] = relationship(
+        back_populates="group",
+        order_by="VlessLink.position",
+    )
+
+
 class VlessLink(Base):
     """Одна ссылка-конфиг (vless:// или hy2://), которую сервер отдаёт
     в списке подписки. Раньше эти ссылки лежали прямо в коде
@@ -72,7 +103,10 @@ class VlessLink(Base):
     is_dead=True — это "запасные"/заглушечные ссылки (аналог DEAD_LINKS):
     отдаются вместо обычного списка, если токен подписки не найден или
     истёк. Обычные и dead-ссылки — раздельные наборы, не смешиваются.
-    """
+
+    group_id — необязательная подгруппа (VlessLinkGroup) для удобства
+    в админке; ссылки без группы просто отображаются в общем списке
+    своего набора (рабочие/запасные)."""
 
     __tablename__ = "vless_links"
 
@@ -83,6 +117,10 @@ class VlessLink(Base):
     # Заметка для админа (например "DE fin6 WiFi") — не показывается
     # пользователю, только в списке в админке для удобства ориентации.
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("vless_link_groups.id"), nullable=True, index=True
+    )
 
     is_dead: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
@@ -95,6 +133,8 @@ class VlessLink(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(), default=datetime.datetime.now
     )
+
+    group: Mapped["VlessLinkGroup | None"] = relationship(back_populates="links")
 
 
 class Payment(Base):
@@ -115,6 +155,44 @@ class Payment(Base):
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(), default=datetime.datetime.now
+    )
+
+    user: Mapped["User"] = relationship()
+
+
+class PlategaPayment(Base):
+    """Отслеживание транзакции банковской картой через Platega.
+
+    Создаётся сразу при формировании платёжной ссылки (status=PENDING),
+    до того как пользователь вообще открыл страницу оплаты. Callback от
+    Platega не содержит наш payload — только id транзакции, поэтому
+    сопоставление "какому пользователю/тарифу начислить подписку"
+    делается по transaction_id, а не по данным из callback'а.
+
+    chat_id хранится отдельно от user (через user.tg_id), чтобы вебхук
+    в процессе api.py мог отправить сообщение пользователю напрямую
+    через Bot API, не поднимая aiogram-диспетчер бота."""
+
+    __tablename__ = "platega_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+
+    transaction_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+
+    tariff_key: Mapped[str] = mapped_column(String(32))
+    amount: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(8), default="RUB")
+
+    # PENDING | CONFIRMED | CANCELED | CHARGEBACKED
+    status: Mapped[str] = mapped_column(String(16), default="PENDING", index=True)
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(), default=datetime.datetime.now
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(), default=datetime.datetime.now, onupdate=datetime.datetime.now
     )
 
     user: Mapped["User"] = relationship()
