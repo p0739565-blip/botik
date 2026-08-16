@@ -16,7 +16,7 @@ PlategaPayment для сопоставления вебхука с пользо�
 
 from aiogram.types import LabeledPrice
 
-from app.config import PLATEGA_CARD_METHOD, SUB_DOMAIN
+from app.config import PLATEGA_CARD_METHOD, PLATEGA_SBP_METHOD, SUB_DOMAIN
 from app.db import async_session
 from app.models import PlategaPayment, User
 from app.services import platega
@@ -43,18 +43,28 @@ def build_stars_invoice(tariff: dict) -> dict:
 
 
 # =====================================================
-# Банковская карта — Platega
+# Platega — банковская карта и СБП
 # =====================================================
+# Оба способа идут через один и тот же шлюз и один и тот же
+# create_transaction(), различается только числовой payment_method и
+# то, что мы пишем в PlategaPayment.method (нужно вебхуку, чтобы
+# записать правильный Payment.method). Тарифы (цены) общие —
+# используем то же поле tariff["card"], отдельного поля "sbp" в
+# TARIFFS нет и не требуется.
 
-async def create_card_payment(
+async def _create_platega_payment(
+    *,
     user: User,
     chat_id: int,
     tariff_key: str,
     tariff: dict,
+    payment_method: int,
+    method_label: str,
 ) -> str:
     """
     Создаёт транзакцию в Platega и локальную запись PlategaPayment
-    (status=PENDING), возвращает ссылку на страницу оплаты.
+    (status=PENDING), возвращает ссылку на страницу оплаты (для СБП
+    Platega показывает на этой же странице QR-код для сканирования).
 
     Подтверждение оплаты придёт отдельно, через POST на
     /webhooks/platega — там и выдаётся подписка.
@@ -69,7 +79,7 @@ async def create_card_payment(
         return_url=f"{SUB_DOMAIN}/payments/platega/return",
         failed_url=f"{SUB_DOMAIN}/payments/platega/failed",
         payload=f"user:{user.tg_id}:tariff:{tariff_key}",
-        payment_method=PLATEGA_CARD_METHOD,
+        payment_method=payment_method,
     )
 
     transaction_id = response["transactionId"]
@@ -88,6 +98,7 @@ async def create_card_payment(
                 chat_id=chat_id,
                 transaction_id=transaction_id,
                 tariff_key=tariff_key,
+                method=method_label,
                 amount=amount,
                 currency="RUB",
                 status="PENDING",
@@ -96,6 +107,38 @@ async def create_card_payment(
         await session.commit()
 
     return redirect_url
+
+
+async def create_card_payment(
+    user: User,
+    chat_id: int,
+    tariff_key: str,
+    tariff: dict,
+) -> str:
+    return await _create_platega_payment(
+        user=user,
+        chat_id=chat_id,
+        tariff_key=tariff_key,
+        tariff=tariff,
+        payment_method=PLATEGA_CARD_METHOD,
+        method_label="card",
+    )
+
+
+async def create_sbp_payment(
+    user: User,
+    chat_id: int,
+    tariff_key: str,
+    tariff: dict,
+) -> str:
+    return await _create_platega_payment(
+        user=user,
+        chat_id=chat_id,
+        tariff_key=tariff_key,
+        tariff=tariff,
+        payment_method=PLATEGA_SBP_METHOD,
+        method_label="sbp",
+    )
 
 
 # =====================================================

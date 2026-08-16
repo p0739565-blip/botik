@@ -62,6 +62,13 @@ PLATEGA_BASE_URL = os.getenv("PLATEGA_BASE_URL", "https://app.platega.io").strip
 # временно смените на 2 (SBP QR) через .env.
 PLATEGA_CARD_METHOD = _int_env("PLATEGA_CARD_METHOD", 11)
 
+# Числовой код способа оплаты для кнопки "СБП" (оплата по QR-коду
+# через Систему быстрых платежей). По умолчанию 2. Уточните у
+# менеджера Platega, что СБП-каскад подключен на вашем мерчанте —
+# иначе получите ту же ошибку "No available ... cascades", что и с
+# картой.
+PLATEGA_SBP_METHOD = _int_env("PLATEGA_SBP_METHOD", 2)
+
 
 # ==========================
 # Локальная база SQLite

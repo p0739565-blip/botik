@@ -87,6 +87,7 @@ async def platega_webhook(request: Request):
         chat_id = payment.chat_id
         tariff_key = payment.tariff_key
         amount = payment.amount
+        method = payment.method or "card"
 
         await session.commit()
 
@@ -126,7 +127,7 @@ async def platega_webhook(request: Request):
             Payment(
                 user_id=user_id,
                 tariff_key=tariff_key,
-                method="card",
+                method=method,
                 amount=amount,
                 days=tariff["days"],
             )
