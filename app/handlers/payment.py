@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import F, Router
 from aiogram.types import (
     CallbackQuery,
@@ -11,11 +13,13 @@ from app.db import async_session
 from app.keyboards.inline import payment_keyboard, payment_method_keyboard
 from app.models import Payment
 from app.services import platega
-from app.services.payments import build_stars_invoice, create_card_payment
+from app.services.payments import build_stars_invoice, create_card_payment, create_sbp_payment
 from app.services.subscription import send_subscription
 from app.services.users import get_or_create_user
 from app.settings.tariffs import TARIFFS
 from app.texts.messages import PAYMENT_THANKS_TEXT
+
+logger = logging.getLogger("payment_handler")
 
 router = Router()
 
@@ -52,6 +56,17 @@ async def choose_card_method(callback: CallbackQuery):
     await callback.message.edit_text(
         "💎 Выберите тариф💎 :",
         reply_markup=payment_keyboard("card"),
+    )
+
+
+@router.callback_query(F.data == "method_sbp")
+async def choose_sbp_method(callback: CallbackQuery):
+
+    await callback.answer()
+
+    await callback.message.edit_text(
+        "💎 Выберите тариф💎 :",
+        reply_markup=payment_keyboard("sbp"),
     )
 
 
@@ -127,10 +142,30 @@ async def buy_card(callback: CallbackQuery):
             tariff_key=tariff_key,
             tariff=tariff,
         )
-    except platega.PlategaError:
+    except platega.PlategaError as e:
+        logger.error(
+            "buy_card: Platega API error tg_id=%s tariff=%s status=%s body=%s",
+            callback.from_user.id, tariff_key, e.status, e.body,
+        )
         await callback.message.answer(
             "Не получилось создать ссылку на оплату картой. "
             "Попробуйте ещё раз чуть позже или оплатите через Telegram Stars."
+        )
+        return
+    except Exception:
+        # Любая другая ошибка (сеть, таймаут, неожиданный формат ответа
+        # Platega без "transactionId"/"redirect" и т.п.) — раньше здесь
+        # исключение улетало необработанным, aiogram его логировал, а
+        # пользователь просто не получал никакого ответа после нажатия
+        # на тариф. Логируем с traceback и всё равно отвечаем.
+        logger.exception(
+            "buy_card: unexpected error tg_id=%s tariff=%s",
+            callback.from_user.id, tariff_key,
+        )
+        await callback.message.answer(
+            "Не получилось создать ссылку на оплату картой (техническая "
+            "ошибка). Попробуйте ещё раз чуть позже или оплатите через "
+            "Telegram Stars."
         )
         return
 
@@ -142,6 +177,76 @@ async def buy_card(callback: CallbackQuery):
             inline_keyboard=[[
                 InlineKeyboardButton(
                     text="💳 Перейти к оплате",
+                    url=pay_url,
+                )
+            ]]
+        ),
+    )
+
+
+# ==========================================
+# СБП (QR-код) — Platega
+# ==========================================
+
+@router.callback_query(F.data.startswith("buy_sbp_"))
+async def buy_sbp(callback: CallbackQuery):
+
+    tariff_key = callback.data.removeprefix("buy_sbp_")
+
+    tariff = TARIFFS.get(tariff_key)
+
+    if tariff is None or tariff.get("card") is None:
+        await callback.answer(
+            "Тариф не найден.",
+            show_alert=True,
+        )
+        return
+
+    await callback.answer()
+
+    user = await get_or_create_user(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
+
+    try:
+        pay_url = await create_sbp_payment(
+            user=user,
+            chat_id=callback.message.chat.id,
+            tariff_key=tariff_key,
+            tariff=tariff,
+        )
+    except platega.PlategaError as e:
+        logger.error(
+            "buy_sbp: Platega API error tg_id=%s tariff=%s status=%s body=%s",
+            callback.from_user.id, tariff_key, e.status, e.body,
+        )
+        await callback.message.answer(
+            "Не получилось создать ссылку на оплату через СБП. "
+            "Попробуйте ещё раз чуть позже или оплатите через Telegram Stars."
+        )
+        return
+    except Exception:
+        logger.exception(
+            "buy_sbp: unexpected error tg_id=%s tariff=%s",
+            callback.from_user.id, tariff_key,
+        )
+        await callback.message.answer(
+            "Не получилось создать ссылку на оплату через СБП (техническая "
+            "ошибка). Попробуйте ещё раз чуть позже или оплатите через "
+            "Telegram Stars."
+        )
+        return
+
+    await callback.message.answer(
+        f"Оплата: {tariff['title']} — {tariff['card']}₽\n\n"
+        "На открывшейся странице отсканируйте QR-код в приложении "
+        "вашего банка (СБП). После оплаты подписка придёт в этот чат "
+        "автоматически в течение пары минут.",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="📱 Перейти к оплате (QR)",
                     url=pay_url,
                 )
             ]]

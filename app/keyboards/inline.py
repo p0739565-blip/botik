@@ -54,6 +54,12 @@ def payment_method_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text="📱 СБП (QR-код)",
+                    callback_data="method_sbp",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="₿ Криптовалюта (скоро)",
                     callback_data="soon",
                 )
@@ -108,6 +114,16 @@ def payment_keyboard(payment_type: str = "stars") -> InlineKeyboardMarkup:
             suffix = f"{price}⭐️{_discount_suffix(tariff, 'stars')}"
 
         elif payment_type == "card":
+            price = tariff["card"]
+
+            if price is None:
+                continue
+
+            suffix = f"{price}р{_discount_suffix(tariff, 'card')}"
+
+        elif payment_type == "sbp":
+            # Отдельного поля "sbp" в тарифах нет — те же тарифы/цены,
+            # что и для карты (общий шлюз Platega, просто другой метод).
             price = tariff["card"]
 
             if price is None:
